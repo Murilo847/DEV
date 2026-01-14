@@ -1,5 +1,5 @@
--- [LUA NEXUS] | LOADER SYSTEM V56
--- Versao Final (Links Dinamicos + Auto Update)
+-- [LUA NEXUS] | LOADER SYSTEM V57
+-- Versao Final (ANTI-CACHE + AUTO UPDATE)
 
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
@@ -10,17 +10,20 @@ local MarketplaceService = game:GetService("MarketplaceService")
 local LocalPlayer = Players.LocalPlayer
 
 -- ====================================================
--- CONFIGURACOES (LINKS PERMANENTES - NAO PRECISA MAIS MUDAR)
+-- CONFIGURACOES (LINKS PERMANENTES DO GIST)
 -- ====================================================
--- Link das Keys (Sempre pega a ultima versao editada)
 local UrlKeys = "https://gist.githubusercontent.com/Murilo847/fe4faa75154c36319ed229fce3225666/raw/keys-loader-marvel-omega.txt"
-
--- Link do Script (Sempre pega a ultima versao editada)
 local UrlScript = "https://gist.githubusercontent.com/Murilo847/b88ddb99acfc2631e0f31736a2dcebe0/raw/FLOP-HUB-MARVEL-OMEGAV3-CONFIG.txt"
 
 local WebhookURL = "https://discord.com/api/webhooks/1459888505252745607/jZGBnAX_Aio-Zdd77Fhv4Wcsf5yiL_KYRj7d_e0my5p8pU7oL-YU1Qngh0fQhjNSEZvU" 
 local FileName = "NexusLoader_Key.txt"
 -- ====================================================
+
+-- FUNCAO MAGICA ANTI-CACHE (O Segredo da Diva)
+-- Ela adiciona "?t=123456" no final do link pra forcar o download novo
+local function GetNoCache(url)
+    return url .. "?t=" .. tostring(os.time())
+end
 
 -- LOGGER SYSTEM
 local function LogarExecucao(keyUsada)
@@ -63,7 +66,7 @@ local function LogarExecucao(keyUsada)
     end
 end
 
--- PALETA DE CORES
+-- UI BUILDER
 local ColorGlassDark = Color3.fromRGB(10, 10, 15) 
 local ColorGlassLight = Color3.fromRGB(30, 30, 40) 
 local ColorStroke = Color3.fromRGB(60, 60, 80) 
@@ -72,7 +75,6 @@ local ColorRed = Color3.fromRGB(255, 80, 80)
 local ColorWhite = Color3.new(1, 1, 1)
 local ColorTextDim = Color3.fromRGB(160, 160, 180)
 
--- HELPERS
 local function AddCorner(parent, radius) 
     local c = Instance.new("UICorner", parent)
     c.CornerRadius = UDim.new(0, radius)
@@ -88,7 +90,6 @@ local function AddStroke(parent, color, thickness)
     return s 
 end
 
--- CONSTROI A UI
 local ScreenGui = Instance.new("ScreenGui")
 if CoreGui:FindFirstChild("NexusLoader") then CoreGui.NexusLoader:Destroy() end
 ScreenGui.Parent = CoreGui
@@ -156,7 +157,7 @@ KeyBox.Font = Enum.Font.GothamBold
 KeyBox.TextSize = 14
 KeyBox.TextXAlignment = Enum.TextXAlignment.Center
 
--- AUTO-FILL (CARREGA A KEY SALVA)
+-- AUTO-FILL
 if isfile and isfile(FileName) then
     local savedKey = readfile(FileName)
     if savedKey and savedKey ~= "" then
@@ -177,14 +178,15 @@ Btn.AutoButtonColor = true
 AddCorner(Btn, 12)
 AddStroke(Btn, ColorStroke, 1)
 
--- LOGICA DE CLIQUE
+-- LOGICA DE CLIQUE COM ANTI-CACHE
 Btn.MouseButton1Click:Connect(function()
     Btn.Text = "VERIFICANDO..."
     StatusDot.BackgroundColor3 = Color3.fromRGB(255, 255, 0) 
     task.wait(0.5)
     
+    -- AQUI ESTA A MAGICA: GetNoCache(UrlKeys)
     local success, keyListRaw = pcall(function()
-        return game:HttpGet(UrlKeys)
+        return game:HttpGet(GetNoCache(UrlKeys))
     end)
     
     if success then
@@ -200,16 +202,9 @@ Btn.MouseButton1Click:Connect(function()
         end
         
         if isValid then
-            -- [SUCESSO]
+            if writefile then writefile(FileName, inputKey) end
             
-            -- SALVA A KEY NO ARQUIVO
-            if writefile then
-                writefile(FileName, inputKey)
-            end
-
-            task.spawn(function()
-                LogarExecucao(inputKey)
-            end)
+            task.spawn(function() LogarExecucao(inputKey) end)
 
             Btn.Text = "KEY APROVADA"
             Btn.TextColor3 = ColorGreen
@@ -222,8 +217,9 @@ Btn.MouseButton1Click:Connect(function()
             task.wait(1)
             ScreenGui:Destroy()
             
-            -- CARREGA O SCRIPT PRINCIPAL
-            loadstring(game:HttpGet(UrlScript))()
+            -- AQUI TAMBEM: GetNoCache(UrlScript)
+            -- Isso garante que pegue sempre a versao nova do script
+            loadstring(game:HttpGet(GetNoCache(UrlScript)))()
             
             game:GetService("StarterGui"):SetCore("SendNotification", {
                 Title = "FLOP HUB",
@@ -231,7 +227,6 @@ Btn.MouseButton1Click:Connect(function()
                 Duration = 5,
             })
         else
-            -- [FALHA]
             Btn.Text = "KEY INVALIDA"
             Btn.TextColor3 = ColorRed
             StatusDot.BackgroundColor3 = ColorRed
@@ -241,7 +236,6 @@ Btn.MouseButton1Click:Connect(function()
             Btn.TextColor3 = ColorWhite
             
             task.wait(1.5)
-            
             Btn.Text = "ENTRAR"
             Btn.BackgroundColor3 = ColorGlassLight
             Btn.BackgroundTransparency = 0.3
@@ -254,7 +248,6 @@ Btn.MouseButton1Click:Connect(function()
     end
 end)
 
--- LOGICA DE ARRASTAR JANELA
 local dragging, dragInput, dragStart, startPos
 Frame.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
